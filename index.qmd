@@ -12,11 +12,25 @@ First, read in the CSV data of cookie ingredients.
 Make sure that your end-result data has appropriate types for each column - these should match the types provided in the documentation in the README.md file.
 
 ```{r}
+cookie_info <- read.csv("choc_chip_cookie_ingredients.csv")
+head(cookie_info)
+#str(cookie_info)
+unique_values <- unique(cookie_info$Unit)
+print(unique_values)
+
+#units is listed as a number in the read_me, however it is chr in the file - change into numbers???? revist later.
+#X is not needed, will probably ignore or maybe remove later
+
+
 
 ```
 
 ```{python}
-
+import pandas as pd
+cookie_info = pd.read_csv("choc_chip_cookie_ingredients.csv")
+print(cookie_info.head())
+#print(cookie_info.dtypes)
+#again, unit is stored as text and not as a number like it says in the read me file
 ```
 
 
@@ -34,11 +48,11 @@ Exploratory data analysis is the process of getting familiar with your dataset. 
 
 Generate at least 5 questions you might explore using this database of cookie ingredients.
 
-1.
-2. 
-3. 
-4. 
-5. 
+1. How many recipes use the same ingredients - just different quantities?
+2. Which recipe using the least ingredients?
+3. How do ingredients relate to rating?
+4. What counts as an outlier?
+5. What ingredients make a bad cookie?
 
 
 ### Skimming the Data
@@ -53,14 +67,28 @@ Install both packages, and read the package documentation ([R](https://cran.r-pr
 
 
 ```{r}
+library(skimr)
+skim(cookie_info) |>
+  dplyr::select(skim_type, skim_variable, n_missing)
+#skim(cookie_info)
 
 ```
 
 ```{python}
+import skimpy
+from skimpy import skim_get_data, skim
+
+cookie_summary = skim_get_data(cookie_info)
+#skim(cookie_info[["Ingredient","Recipe_Index"]])
+print(cookie_summary)
+
 
 ```
 
 [Part 2] Write 1-2 sentences about what you can tell from each summary display you generate. Did you discover anything new about the data?
+
+From R: Rating is missing a lot of values (1010 out of 1990).
+From Python: There are 1990 columns. I also thought quantity would be a number, but instead it's a descripter like cup or teapspoon. I was going to change this column so its in numbers like the ReadMe expects it to be, but due to this information I've decided to leave it. 
 
 ### Generating Tables
 
@@ -68,9 +96,101 @@ Another useful technique for exploratory data analysis is to generate summary ta
 You may want to use the `dplyr` package in R (`group_by` or `count` functions), as well as the `groupby` and `count` methods in Pandas. [Python example](https://sparkbyexamples.com/pandas/pandas-groupby-count-examples/), [R example](https://dplyr.tidyverse.org/reference/count.html)
 
 [Part 1] Using R and Python, generate a table that shows what **proportion** of recipes contain each type of ingredient, for the most common 20 ingredients.
+```{r}
+library(dplyr)
+#skim(cookie_info) |>
+   #tibble::as_tibble()
+total_recipes <- cookie_info |>
+  distinct(Recipe_Index) |>
+  nrow() #finds total number of recipes
+
+results_sorted <- cookie_info |>
+  count(Ingredient) |>
+  arrange(desc(n)) #counts ingredients
+#print(results_sorted)
+top_20 = results_sorted[1:20,]
+#print(top_20)
+
+combo_id_ingredients <- cookie_info |>
+  distinct(Ingredient, Recipe_Index) #makes sure ingredient is only listed once for each ingredient
+#print(combo_id_ingredients)
+
+#filters combo by the top 20 ingredients
+filtered_combo <- semi_join(combo_id_ingredients,top_20, by = "Ingredient")
+#print(filtered_combo)
+
+#creates counts ingredients in filtered_combo
+filtered_sorted <- filtered_combo |>
+  count(Ingredient) |>
+  arrange(desc(n))
+
+#print(filtered_sorted)
+#print(total_recipes)
+
+#creates proportion column in filtered_sorted 
+filtered_sorted <- filtered_sorted |>
+  mutate(proportion = n / total_recipes)
+
+
+print(filtered_sorted)
+#1) - identify most common 20 ingredients
+#2) - count how many recipes include 20 ingredients
+#3) - calculate porportions into a table
+```
+
+```{python}
+#1) - identify most common 20 ingredients
+#2) - count how many recipes include 20 ingredients
+#3) - calculate porportions into a table
+cookie_unique = cookie_info.drop_duplicates(subset = ['Ingredient','Recipe_Index'])
+ingredient_count = cookie_unique.groupby(['Ingredient']).size()
+ingredient_sort = ingredient_count.sort_values(ascending = False)
+ingredient_slice = ingredient_sort[:20]
+
+filtered_info = cookie_unique[cookie_unique['Ingredient'].isin(ingredient_slice.index)]
+
+#Note - filtered count is a SERIES - need a table
+filtered_count = filtered_info.groupby(['Ingredient']).size()
+filtered_table = pd.DataFrame(filtered_count)
+filtered_table = filtered_table.rename(columns={0: "Recipe_Count"})
+filtered_table.index.name = "Ingredient"
+total_recipes = cookie_unique['Recipe_Index'].nunique()
+filtered_table['Proportion'] = filtered_table["Recipe_Count"] / total_recipes
+print(filtered_table)
+
+```
+
 
 [Part 2] Print out a character string that lists all of the ingredients that do not appear in at least 20 recipes.
 
+```{r}
+#print(combo_id_ingredients)
+combo_count <- combo_id_ingredients |>
+  count(Ingredient)
+#print(combo_count)
+#created a df with ingredient counts less than 20
+less_than <- filter(combo_count, n < 20)
+#print(less_than)
+#pulls out ingredients from less than
+ingredients_less <- pull(less_than, Ingredient)
+#print(ingredients_less)
+
+final_string <- paste(ingredients_less, collapse = ", ")
+print(final_string)
+#collapses ingredients_less into a single character string
+
+#1 create count of ingredients and recipe_index (combo_id_ingredients)
+#2 count how many times an ingredient shows up in a recipe
+#3 create a character string of ingredients whose count is less than 20
+```
+
+```{python}
+import numpy as np
+less_than_20 = ingredient_count[ingredient_count < 20]
+delimiter = ', '
+final_result = delimiter.join(less_than_20.index)
+print(final_result)
+```
 
 (Delete this note, but you can include data values inline in markdown text by using backticks, at least in R. For instance, here is R's built in value for pi: `r pi`. Unfortunately, this doesn't work in python using the knitr markdown engine, but you can print the list out in python anyways using a code chunk.)
 
@@ -80,4 +200,21 @@ Using whatever plotting system you are comfortable with in R or python, see if y
 
 [Part 1] Create at least one plot (it doesn't have to be pretty) that showcases an interesting facet of the data.
 
+
+```{python}
+import matplotlib.pyplot as plt
+#Which variable contains the most outliers?
+#Quantity, but I think rating is more interesting
+#cookie_unique.std(numeric_only=True)
+ratings = cookie_unique["Rating"]
+plt.boxplot(ratings, vert=False)
+plt.xlabel("Rating")
+plt.title("Distribution of Cookie Ratings")
+plt.show()
+
+
+```
+
 [Part 2] Write 2-3 sentences about what you can learn from that plot and what directions you might want to investigate from here.
+
+The distribution of cookie ratings shows a very tight clustering around the mean. This might be due to the standardization of this variable discussed in the ReadMe. Looking back, the creator of the dataset calculated each rating to fit within 0 and 1, which limited variability and results in a small standard deviation. I think it be interesting to take the unstandardized values and see if there's any difference in the standard deviation. 
