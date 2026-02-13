@@ -190,7 +190,7 @@ less_than_20 = ingredient_count[ingredient_count < 20]
 delimiter = ', '
 final_result = delimiter.join(less_than_20.index)
 print(final_result)
-```
+``` 
 
 (Delete this note, but you can include data values inline in markdown text by using backticks, at least in R. For instance, here is R's built in value for pi: `r pi`. Unfortunately, this doesn't work in python using the knitr markdown engine, but you can print the list out in python anyways using a code chunk.)
 
