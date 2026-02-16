@@ -185,6 +185,7 @@ print(final_string)
 ```
 
 ```{python}
+
 import numpy as np
 less_than_20 = ingredient_count[ingredient_count < 20]
 delimiter = ', '
